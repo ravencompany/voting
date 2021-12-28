@@ -22,6 +22,8 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
+from app_gui import *
+
 # stuff from matplotlib
 import numpy as np
 import matplotlib.pyplot as plt
@@ -33,12 +35,25 @@ import csv
 import re
 
 
-# If modifying these scopes, delete the file token.pickle.
+# If modifying these scopes, delete the file token.json.
 SCOPES = ['https://www.googleapis.com/auth/spreadsheets.readonly']
 
-# The ID and range of a sample spreadsheet.
+# The ID and range of the spreadsheet that contains ID ref codes and Display Names
+IDENTITIES_SHEET_ID = '163CQ-9v3S5YYA1mFO7el1PI-QbpmfDPK-fSeLECaqrk'
+IDENTITIES_RANGE_NAME = 'Form responses 1!A2:D'
+
+# The ID and range of the spreadsheet that contains ID ref codes and Vote responses
 SAMPLE_SPREADSHEET_ID = '13sq0PKc-D1NlFySgHGb4OMpymYVa_mnPXwcvH6p_J1U'
 SAMPLE_RANGE_NAME = 'Form responses 1!A2:C'
+
+# Thoughts on data structure and architecture:
+# Data structure "voter_data", a dictionary of objects indexed by refcode
+#    Voter(s) display name: disp_name
+#    Max votes: max_votes
+#    vote total: tot_votes
+# Backref list of "voter_keys", ordered by display name
+# Dictionary "vote_count", indexed by eg "For"
+# Object AppWindow, with constructor, attributes, methods, why not. In seperate file
 
 
 def getPopulateData(scanFlag):  # with scanflag false, do not actually harvest, just set tbl_data and vote_data. had scope issues otherwise.
