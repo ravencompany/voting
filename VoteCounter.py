@@ -33,6 +33,8 @@ import matplotlib.animation as animation
 import csv
 # regular expression parser
 import re
+# basic math
+import math
 
 
 # If modifying these scopes, delete the file token.json.
@@ -40,94 +42,86 @@ SCOPES = ['https://www.googleapis.com/auth/spreadsheets.readonly']
 
 # The ID and range of the spreadsheet that contains ID ref codes and Display Names
 IDENTITIES_SHEET_ID = '163CQ-9v3S5YYA1mFO7el1PI-QbpmfDPK-fSeLECaqrk'
-IDENTITIES_RANGE_NAME = 'Form responses 1!A2:D'
+IDENTITIES_RANGE_NAME = 'Form responses 1!B2:D'
 
 # The ID and range of the spreadsheet that contains ID ref codes and Vote responses
-SAMPLE_SPREADSHEET_ID = '13sq0PKc-D1NlFySgHGb4OMpymYVa_mnPXwcvH6p_J1U'
-SAMPLE_RANGE_NAME = 'Form responses 1!A2:C'
+VOTES_SPREADSHEET_ID = '13sq0PKc-D1NlFySgHGb4OMpymYVa_mnPXwcvH6p_J1U'
+VOTES_RANGE_NAME = 'Form responses 1!A2:C'
 
 # Thoughts on data structure and architecture:
 # Data structure "voter_data", a dictionary of objects indexed by refcode
 #    Voter(s) display name: disp_name
 #    Max votes: max_votes
 #    vote total: tot_votes
+#    datagrid object from app_gui, or None
 # Backref list of "voter_keys", ordered by display name
 # Dictionary "vote_count", indexed by eg "For"
-# Object AppWindow, with constructor, attributes, methods, why not. In seperate file
+# Object "gui", with constructor, attributes, methods, why not. In seperate file
+
+voter_data={}
+
+class voter:
+    disp_name="undefined"
+    max_votes=0
+    tot_votes=1
+    def __init__(self,row=[]):
+        if len(row)>=2:
+            self.disp_name=row[1]
+        if len(row)>=3:
+            self.max_votes=int(row[2])
+        self.datagrid=datagrid(gui.frm_main,name=self.disp_name,status=self.vote_status())
+    def vote_status(self):
+        return "".join((lambda i:
+                    "\N{BULLET}" if (i<self.tot_votes)
+                    else "\N{WHITE BULLET}")(i) 
+                    for i in range(self.max_votes))
+        
 
 
-def getPopulateData(scanFlag):  # with scanflag false, do not actually harvest, just set tbl_data and vote_data. had scope issues otherwise.
-    global tbl_data
-    global vote_data
-    # reset table data
-    vote_data=[0., 0., 0.]
-
-    for k in voter_keys:
-        voter_tstamp[k]= "---"
-        voter_vote[k]=""
-
-    # populate from sheet
-    values=False
-    if scanFlag:
-        result = sheet.values().get(spreadsheetId=SAMPLE_SPREADSHEET_ID,
-                                    range=SAMPLE_RANGE_NAME).execute()
-        values = result.get('values', [])
+def sync_voters():
+    #fetch data from IDENTITIES_SHEET
+    result = sheet.values().get(spreadsheetId=IDENTITIES_SHEET_ID,
+                                range=IDENTITIES_RANGE_NAME).execute()
+    values = result.get('values', [])
     
-    strip_pre=re.compile(".* ")
-    strip_space=re.compile("\s")
-
+    strip_space=re.compile(r"\s")
     if not values:
         print('No data found.')
+        return False
     else:
-        #print('Timestamp, Codeword, response:')
-        #i=0
         for row in values:
-            if len(row)<3:
+            if len(row)<2:
                 continue
-            codeword=strip_space.sub("",row[1]).lower()
-            if codeword in voter_keys:
-                #print(codeword + " detected")
-                voter_tstamp[codeword]=strip_pre.sub("",row[0])
-                voter_vote[codeword]=row[2]
+            refcode=strip_space.sub("",row[1])
+            if refcode in voter_data:
+                # handle update
+                print(f"Repeat {refcode}")
             else:
-                print(codeword + " not matched!")
+                #instantiate voter, pasing row for convenience
+                voter_data[refcode]=voter(row)
 
-    tbl_data=[]
-    k=0
-    for i in range(0,18):
-        tbl_data.append([])
-        for j in range(0,2):
-            k=voter_keys[i+18*j]
-            tbl_data[i].append(voter_name[k])
-            tbl_data[i].append(voter_tstamp[k])
+def sync_gui():
+    i=0
+    j=0
+    refcodes=voter_data.keys()
+    rows=math.ceil(len(refcodes)/gui.cols)
+    # Note, possible not all cols are used
+    # e.g. 4 items, 3 cols needs 2 rows. 2 rows gives 2 cols.
+    # Keeping this behaviour, because more optimal packing
 
-    for key in voter_keys:
-        if voter_vote[key] in xlabelD:
-            vote_data[xlabelD[voter_vote[key]]]+=1
-    
-    #print("getPopulateData ended vote_data=" + repr(vote_data))
-    
-def init():  # only required for blitting to give a clean slate.
-    getPopulateData(True)
-    #print("vote_data in init: " + repr(vote_data))
-    if tableActive:
-        for i in range(0,18):
-            for j in range(0,4):
-                textObj=the_table[i+1,j].get_text()
-                textObj.set_text(tbl_data[i][j])
-    if barsActive:
-        maxh=1
-        for i in range(len(xlabels)):
-            bar_chart[i].set_height(vote_data[i])
-            if vote_data[i]>maxh:
-                maxh=vote_data[i]
-        artists[-1].set_ylim(0,maxh) # if barsActive, actual axes shuld be last artist
-    return artists
-
-
-def animate(k):
-    init()
-    return artists
+    for k in refcodes:
+        if i>=rows:
+            j=j+1
+            i=0
+        if j==0:
+            gui.frm_main.rowconfigure(i, weight=1, minsize=30)
+        if i==0:
+            gui.frm_main.columnconfigure(j, weight=1, minsize=75)
+        voter_data[k].datagrid.grid(i,j)
+        i=i+1
+    while i<rows: # complete using empty datagrids
+        datagrid(gui.frm_main).grid(i,j)
+        i=i+1
 
 def main():
     """Shows basic usage of the Sheets API.
@@ -157,92 +151,17 @@ def main():
     global sheet
     sheet = service.spreadsheets()
 
+    # instantiate app_gui
+    global gui
+    gui=app_gui()
+    gui.cols=4
+
     # initialise codeword dereferencing
-    global voter_name
-    global voter_tstamp
-    global voter_vote
-    global voter_keys
-    voter_name={}
-    voter_tstamp={}
-    voter_vote={}
-    voter_keys=[]
-    f = open("codewordBackref.csv", "r")
-    csviter = csv.reader(f)
-    for row in csviter:
-        voter_name[row[0]]=row[1]
-        voter_tstamp[row[0]]="---"
-        # ensure consistent ordering
-        voter_keys.append(row[0])
+    sync_voters()
 
+    sync_gui()
 
-    # Initialise MATPLOTLIB table
-    global the_table
-    global bar_chart
-    global artists
-    global tableActive
-    global barsActive
-    artists=[]
-    nplots=1
-    tableActive=True
-    barsActive=True
-
-    global xlabels
-    global xlabelD
-    xlabelD={}
-    xlabels=("For", "Against", "Abstain")
-    for i in range(len(xlabels)):
-        xlabelD[xlabels[i]]=i
-    
-    getPopulateData(False)
-
-    while True:
-        config=input("Request [T]able and/or [B]ar chart?")
-        tableActive=bool(re.search("t",config,re.I))
-        barsActive=bool(re.search("b",config,re.I))
-
-        if (not(tableActive or barsActive)):
-            break
-
-        fig, axs =plt.subplots(1,tableActive + barsActive)
-        
-        if tableActive:
-            if barsActive: # if the other side does not exist, axs will not be subscriptable
-                tmpAx=axs[0]
-                tmpAx.set_position([0.05, 0.1, 0.4, 0.8])
-            else:
-                tmpAx=axs
-                tmpAx.set_position([0.05, 0.1, 0.9, 0.8])
-            collabel=("Voter", "last count", "Voter", "last count")
-            #tmpAx.axis('tight')
-            tmpAx.axis('off')
-            the_table = tmpAx.table(cellText=tbl_data,colLabels=collabel,loc='center')
-            the_table.auto_set_font_size(False)
-            the_table.set_fontsize(10)
-            cellDict=the_table.get_celld()
-            for coord,aCell in cellDict.items():
-                aCell.set_height(1/16)
-                aCell.set_width(0.3-0.11*(coord[1] & 1))
-            artists.append(the_table)
-        
-
-        if barsActive:
-            if tableActive: # if the other side does not exist, axs will not be subscriptable
-                tmpAx=axs[1]
-            else:
-                tmpAx=axs
-            x=range(len(xlabels))
-            bar_chart = tmpAx.bar(x,vote_data)
-            tmpAx.set_xticks(x)
-            tmpAx.set_xticklabels(xlabels)
-            artists.extend(bar_chart) # bar char itself not an artist, but contains rects which are
-            artists.append(tmpAx) # axes also count as an artist, and will need to be animated
-
-        if tableActive:
-            ani = animation.FuncAnimation(
-            fig, animate, init_func=init, interval=1000, blit=False)
-            #print('animation implied by table')
-
-        plt.show()
+    gui.Show()
 
 if __name__ == '__main__':
     main()

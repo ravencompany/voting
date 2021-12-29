@@ -3,13 +3,13 @@
 #    Main frame, grid of frames, containing packed labels (like gridTest) *
 #    Lower frame, Grid of Labels
 #
-# * Each grid box associated to an object in a List
-#       lbl_name, lbl_votes, refcode, frm_self
+# * Each grid box associated to a "datagrid" object, List-ed in app_gui, 
+#   and by anything that wants easy access, eg voter dict.
+#       lbl_name, lbl_votes, frame. + Methods
 
 import tkinter as tk
 
 class app_gui:
-    cols=2             # default columns
     maingridframes=[]  # List for storage of datagrid objects
     def __init__(self):
         window=tk.Tk()
@@ -29,8 +29,9 @@ class app_gui:
         self.window.mainloop()
         
 class datagrid:
-    source=""       #Key of dictionary from which the data is obtained
-    def __init__(self,parent,name="Cell {i}, {j}",status="\N{BULLET}\N{WHITE BULLET}"):
+    def __init__(self,parent,**kwargs):
+        name=kwargs.get('name',"")
+        status=kwargs.get('status',"")
         self.frame = tk.Frame(
             master=parent,
             borderwidth=1
@@ -51,7 +52,13 @@ class datagrid:
         self.lbl_status["background"]=bg
         self.frame.grid(row=i, column=j, padx=1, sticky="nsew")
         # remember to configure rows/columns elsewhere
-
+    def let(self,**kwargs):  #since "set" is reserved in python
+        if "name" in kwargs:
+            self.lbl_name["text"]=kwargs["name"]
+        if "status" in kwargs:
+            self.lbl_status["text"]=kwargs["status"]
+    def remove(self):
+        self.frame.grid_remove()
 
 if __name__ == '__main__':
     test=app_gui()
@@ -59,5 +66,5 @@ if __name__ == '__main__':
         test.frm_main.columnconfigure(i, weight=1, minsize=75)
         test.frm_main.rowconfigure(i, weight=1, minsize=30)
         for j in range(0, 3):
-            datagrid(test.frm_main, f"Cell {i}, {j}").grid(i,j)
+            datagrid(test.frm_main, name=f"Cell {i}, {j}", status="\N{BULLET}\N{WHITE BULLET}").grid(i,j)
     test.Show()
