@@ -10,7 +10,6 @@
 import tkinter as tk
 
 class app_gui:
-    maingridframes=[]  # List for storage of datagrid objects
     def __init__(self):
         window=tk.Tk()
         window.rowconfigure(0, weight=1, minsize=50)
@@ -39,24 +38,28 @@ class datagrid:
 
         self.lbl_status = tk.Label(master=self.frame, text=status, anchor="e", font=("Sans Serif",25))
         self.lbl_status.pack(side=tk.RIGHT, padx=(0,5))
+        self.status=status
 
         self.lbl_name = tk.Label(master=self.frame, text=name, anchor="w")
         self.lbl_name.pack(side=tk.LEFT, padx=(5,0))
+        self.name=name
     def grid(self,i,j):
-        if ((i % 2) == 1):
-            bg="#eee"
-        else:
-            bg="#ccc"
+        bg="#eee" if  ((i % 2) == 1) else "#ccc"
         self.frame["background"]=bg
         self.lbl_name["background"]=bg
         self.lbl_status["background"]=bg
         self.frame.grid(row=i, column=j, padx=1, sticky="nsew")
         # remember to configure rows/columns elsewhere
     def let(self,**kwargs):  #since "set" is reserved in python
-        if "name" in kwargs:
-            self.lbl_name["text"]=kwargs["name"]
-        if "status" in kwargs:
+        # only modify if changed
+        if ("status" in kwargs) and kwargs["status"]!=self.status:
+            self.name=kwargs["status"]
             self.lbl_status["text"]=kwargs["status"]
+        if ("name" in kwargs) and kwargs["name"]!=self.name:
+            self.name=kwargs["name"]
+            self.lbl_name["text"]=kwargs["name"]
+            return True # Useful to propagate name change- could affect layout
+        return False
     def remove(self):
         self.frame.grid_remove()
 
