@@ -10,6 +10,7 @@
 import tkinter as tk
 
 class app_gui:
+    onGrid=[] # somewhere to note which datagrids have been grid-ed
     def __init__(self):
         window=tk.Tk()
         window.rowconfigure(0, weight=1, minsize=50)
@@ -24,6 +25,8 @@ class app_gui:
         self.window=window
     def showLwr(self):
         self.frm_lower.grid(row=1, column=0, padx=2, pady=2, sticky="nsew")
+    def hideLwr(self):
+        self.frm_lower.grid_remove()
     def Show(self):
         self.window.mainloop()
         

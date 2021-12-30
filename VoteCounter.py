@@ -126,13 +126,23 @@ def sync_voters():
         print(f"refcode {k} deleted")
         upd=True
 
-def sync_gui():
+    return True
+
+def sync_gui(**kwargs):
+    for i in gui.onGrid:
+        i.remove()
+    gui.onGrid.clear()
+
+    if "maxcols" in kwargs:
+        gui.maxcols=kwargs["maxcols"]
+        print(f"Max cols now {gui.maxcols}")
+
     i=0
     j=0
     refcodes=[(lambda k,i:(k,i.disp_name.casefold()))(k,i) for k, i in voter_data.items()]
     refcodes.sort(key=lambda e:e[1])
     #print(str(refcodes))
-    rows=math.ceil(len(refcodes)/gui.cols)
+    rows=math.ceil(len(refcodes)/gui.maxcols)
     # Note, possible not all cols are used
     # e.g. 4 items, 3 cols needs 2 rows. 2 rows gives 2 cols.
     # Keeping this behaviour, because more optimal packing
@@ -145,15 +155,34 @@ def sync_gui():
         if i>=rows:
             j=j+1
             i=0
-        if j==0:
-            gui.frm_main.rowconfigure(i, weight=1, minsize=30)
-        if i==0:
-            gui.frm_main.columnconfigure(j, weight=1, minsize=75)
         voter_data[k].datagrid.grid(i,j)
+        gui.onGrid.append(voter_data[k].datagrid)
         i=i+1
     while i<rows: # complete using spares
         gui.spares[i].grid(i,j)
+        gui.onGrid.append(gui.spares[i])
         i=i+1
+
+    # config rows and cols to match resulting grid
+    cols=j+1
+    while gui.rows<rows:
+        gui.frm_main.rowconfigure(gui.rows, weight=1, minsize=30)
+        print(f"set row {gui.rows+1}")
+        gui.rows=gui.rows+1
+    while gui.cols<cols:
+        gui.frm_main.columnconfigure(gui.cols, weight=1, minsize=75)
+        print(f"set col {gui.cols+1}")
+        gui.cols=gui.cols+1
+    while gui.rows>rows:
+        gui.rows=gui.rows-1
+        gui.frm_main.rowconfigure(gui.rows, weight=0, minsize=0)
+        print(f"unset row {gui.rows+1}")
+    while gui.cols>cols:
+        gui.cols=gui.cols-1
+        gui.frm_main.columnconfigure(gui.cols, weight=0, minsize=0)
+        print(f"unset col {gui.cols+1}")
+        
+
 
 def main():
     """Shows basic usage of the Sheets API.
@@ -186,13 +215,17 @@ def main():
     # instantiate app_gui
     global gui
     gui=app_gui()
-    gui.cols=4
+    gui.maxcols=4
+    # col/row config linked to change in rows/cols
+    gui.cols=0
+    gui.rows=0
     gui.spares=[]
+    gui.window.bind("<Left>", lambda e:sync_gui(maxcols=gui.maxcols-1 if gui.maxcols>1 else 1))
+    gui.window.bind("<Right>", lambda e:sync_gui(maxcols=gui.maxcols+1))
 
     # initialise codeword dereferencing
-    sync_voters()
-
-    sync_gui()
+    # if sync_voters flags for gui update, do it
+    sync_voters() and sync_gui()
 
     gui.Show()
 
