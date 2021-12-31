@@ -13,20 +13,21 @@ class app_gui:
     onGrid=[] # somewhere to note which datagrids have been grid-ed
     def __init__(self):
         window=tk.Tk()
+        self.window=window
         window.rowconfigure(0, weight=1, minsize=50)
         window.columnconfigure(0, weight=1, minsize=75)
         self.frm_main = tk.Frame(master=window, background="#aaa")
         self.frm_main.grid(row=0, column=0, padx=2, pady=2, sticky="nsew")
         #tk.Label(master=self.frm_main, text="main frame").pack() # dummy content
-        window.rowconfigure(1, weight=0, minsize=30)
         self.frm_lower = tk.Frame(master=window, relief=tk.SUNKEN, borderwidth=1)
         #tk.Label(master=self.frm_lower, text="lower frame").pack() # dummy content
         self.showLwr()
-        self.window=window
     def showLwr(self):
         self.frm_lower.grid(row=1, column=0, padx=2, pady=2, sticky="nsew")
+        self.window.rowconfigure(1, weight=0, minsize=30)
     def hideLwr(self):
         self.frm_lower.grid_remove()
+        self.window.rowconfigure(1, weight=0, minsize=0)
     def Show(self):
         self.window.mainloop()
         
@@ -56,7 +57,7 @@ class datagrid:
     def let(self,**kwargs):  #since "set" is reserved in python
         # only modify if changed
         if ("status" in kwargs) and kwargs["status"]!=self.status:
-            self.name=kwargs["status"]
+            self.status=kwargs["status"]
             self.lbl_status["text"]=kwargs["status"]
         if ("name" in kwargs) and kwargs["name"]!=self.name:
             self.name=kwargs["name"]

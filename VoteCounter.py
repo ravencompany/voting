@@ -35,7 +35,7 @@ import csv
 import re
 # basic math
 import math
-
+import time
 
 # If modifying these scopes, delete the file token.json.
 SCOPES = ['https://www.googleapis.com/auth/spreadsheets.readonly']
@@ -46,7 +46,7 @@ IDENTITIES_RANGE_NAME = 'Form responses 1!B2:D'
 
 # The ID and range of the spreadsheet that contains ID ref codes and Vote responses
 VOTES_SPREADSHEET_ID = '13sq0PKc-D1NlFySgHGb4OMpymYVa_mnPXwcvH6p_J1U'
-VOTES_RANGE_NAME = 'Form responses 1!A2:C'
+VOTES_RANGE_NAME = 'Form responses 1!B2:C'
 
 # Thoughts on data structure and architecture:
 # Data structure "voter_data", a dictionary of objects indexed by refcode
@@ -63,7 +63,7 @@ voter_data={}
 class voter:
     disp_name="undefined"
     max_votes=0
-    tot_votes=1
+    tot_votes=0
     exists=True
     def __init__(self,row=[]):
         if len(row)>=2:
@@ -71,37 +71,56 @@ class voter:
         if len(row)>=3:
             self.max_votes=int(row[2])
         self.datagrid=datagrid(gui.frm_main,name=self.disp_name,status=self.vote_status())
-    def update(self,row=[]):
+    def update1(self,row=[]):
         if len(row)>=2:
             self.disp_name=row[1]
         if len(row)>=3:
             self.max_votes=int(row[2])
-        self.datagrid.let(name=self.disp_name,status=self.vote_status())
+        ret=self.datagrid.let(name=self.disp_name)
+        if ret:
+            print("name change detected")
+        return ret
+    def update2(self):
+        self.datagrid.let(status=self.vote_status())
     def vote_status(self):
         return "".join((lambda i:
                     "\N{BULLET}" if (i<self.tot_votes)
                     else "\N{WHITE BULLET}")(i) 
                     for i in range(self.max_votes))
         
-
+class Timer:
+    def __init__(self, what=""):
+        self._start_time = None
+        self.what=what
+    def __enter__(self):
+        self._start_time = time.perf_counter()
+    def __exit__(self,ex_type,ex_val,trace):
+        if self._start_time is None:
+            print(f"Timer {self.what} is not running. Use .start() to start it")
+        else:
+            elapsed_time = time.perf_counter() - self._start_time
+            self._start_time = None
+            print(f"Timed {self.what}: {elapsed_time*1000:0.1f} ms")
 
 def sync_voters():
     #fetch data from IDENTITIES_SHEET
-    result = sheet.values().get(spreadsheetId=IDENTITIES_SHEET_ID,
+    with Timer("getting ident result"):
+        result = sheet.values().get(spreadsheetId=IDENTITIES_SHEET_ID,
                                 range=IDENTITIES_RANGE_NAME).execute()
     values = result.get('values', [])
     
     #handle case where a voter is removed
     #start by un-exist-ing all current
-    for i in voter_data.items():
+    for i in voter_data.values():
         i.exists=False
+        i.tot_votes=0
 
     # log if anything updates that would rebuild gui
     upd=False
 
     strip_space=re.compile(r"\s")
     if not values:
-        print('No data found.')
+        print('No data found in identities sheet.')
         return False
     else:
         for row in values:
@@ -110,25 +129,53 @@ def sync_voters():
             refcode=strip_space.sub("",row[0])
             if refcode in voter_data:
                 # handle update
-                print(f"{refcode} found again, updating")
+                #print(f"{refcode} found again, updating")
                 #
                 voter_data[refcode].exists=True
                 # Note, update only updates max_votes if present
                 # Keeping - someone might resubmit their name
-                upd=voter_data[refcode].update(row) or upd
+                upd=voter_data[refcode].update1(row) or upd
             else:
                 #instantiate voter, pasing row for convenience
                 voter_data[refcode]=voter(row)
                 upd=True
 
-    for k, i in filter(lambda e: not e[1].exists, voter_data.items()):
-        voter_data.pop[k]
-        print(f"refcode {k} deleted")
+    toDel=filter(lambda e: not e[1].exists, voter_data.items())
+    for k, i in list(toDel):
+        print(f"refcode {k} being deleted")
+        voter_data.pop(k)
         upd=True
 
-    return True
+    with Timer("getting vote result"):
+        result = sheet.values().get(spreadsheetId=VOTES_SPREADSHEET_ID,
+                                range=VOTES_RANGE_NAME).execute()
+    values = result.get('values', [])
+
+    vote_count={}
+
+    if not values:
+        print('No data found in votes sheet')
+    else:
+        for row in values:
+            if len(row)<2:
+                continue
+            refcode=strip_space.sub("",row[0])
+            if (refcode in voter_data) and (voter_data[refcode].tot_votes<voter_data[refcode].max_votes):
+                voter_data[refcode].tot_votes=voter_data[refcode].tot_votes+1
+                if row[1] in vote_count:
+                    vote_count[row[1]]=vote_count[row[1]]+1
+                else:
+                    vote_count[row[1]]=1
+
+    for i in voter_data.values():
+        i.update2()
+
+    print(str(vote_count))
+
+    return upd
 
 def sync_gui(**kwargs):
+    print("gui update triggered")
     for i in gui.onGrid:
         i.remove()
     gui.onGrid.clear()
@@ -182,7 +229,10 @@ def sync_gui(**kwargs):
         gui.frm_main.columnconfigure(gui.cols, weight=0, minsize=0)
         print(f"unset col {gui.cols+1}")
         
-
+def sync_all():
+    if sync_voters(): # scan voter/vote data
+        sync_gui()    # update gui if necesary
+    gui.window.after(1500,sync_all) #repeat
 
 def main():
     """Shows basic usage of the Sheets API.
@@ -220,14 +270,16 @@ def main():
     gui.cols=0
     gui.rows=0
     gui.spares=[]
+    gui.window.attributes("-topmost",1)
     gui.window.bind("<Left>", lambda e:sync_gui(maxcols=gui.maxcols-1 if gui.maxcols>1 else 1))
     gui.window.bind("<Right>", lambda e:sync_gui(maxcols=gui.maxcols+1))
+    gui.window.bind("<Up>", lambda e:gui.showLwr())
+    gui.window.bind("<Down>", lambda e:gui.hideLwr())
 
-    # initialise codeword dereferencing
-    # if sync_voters flags for gui update, do it
-    sync_voters() and sync_gui()
+    # initialise synchronisation loop
+    sync_all()
 
-    gui.Show()
+    gui.Show() # calls mainloop
 
 if __name__ == '__main__':
     main()
