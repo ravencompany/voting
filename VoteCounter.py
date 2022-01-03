@@ -59,6 +59,7 @@ VOTES_RANGE_NAME = 'Form responses 1!B2:C'
 # Object "gui", with constructor, attributes, methods, why not. In seperate file
 
 voter_data={}
+str_count=""
 
 class voter:
     disp_name="undefined"
@@ -170,9 +171,43 @@ def sync_voters():
     for i in voter_data.values():
         i.update2()
 
-    print(str(vote_count))
+    sync_count(list(vote_count.items())) # Cast to a true list of tuples
 
     return upd
+
+def sync_count(vote_count):
+    # only continue if there is an update to be made
+    global str_count
+    str_count_new=str(vote_count)
+    if str_count_new==str_count:
+        return
+    str_count=str_count_new
+
+    print("Updating vote count")
+    vote_count.sort(key=lambda e:e[1], reverse=True)
+
+    # Ensure there are enough Label entities in the pool
+    while len(gui.lwr_lbls)<len(vote_count):
+        gui.lwr_lbls.append(tk.Label(master=gui.frm_lower))
+        print("Creating new Label entity for vote_count")
+
+    # Expand grid if necessary
+    while gui.lwr_cols<len(vote_count):
+        gui.lwr_lbls[gui.lwr_cols].grid(row=0, column=gui.lwr_cols, padx=2, pady=2, sticky="nsew")
+        gui.frm_lower.columnconfigure(gui.lwr_cols, weight=1, minsize=50)
+        gui.lwr_cols=gui.lwr_cols+1
+        print("expanding grid for vote_count")
+
+    # Contract grid if necessary
+    while gui.lwr_cols>len(vote_count):
+        gui.lwr_cols=gui.lwr_cols-1
+        gui.lwr_lbls[gui.lwr_cols].grid_remove()
+        gui.frm_lower.columnconfigure(gui.lwr_cols, weight=0, minsize=0)
+        print("contracting grid for vote_count")
+
+    for i in range(len(vote_count)):
+        gui.lwr_lbls[i]["text"]=f"{vote_count[i][0]}:{vote_count[i][1]}"
+         
 
 def sync_gui(**kwargs):
     print("gui update triggered")
@@ -270,6 +305,8 @@ def main():
     gui.cols=0
     gui.rows=0
     gui.spares=[]
+    gui.lwr_cols=0
+    gui.lwr_lbls=[]
     gui.window.attributes("-topmost",1)
     gui.window.bind("<Left>", lambda e:sync_gui(maxcols=gui.maxcols-1 if gui.maxcols>1 else 1))
     gui.window.bind("<Right>", lambda e:sync_gui(maxcols=gui.maxcols+1))
