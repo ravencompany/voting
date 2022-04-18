@@ -10,6 +10,8 @@
                 width:100%;
                 background-color:white;}
             .top {
+                text-decoration: none;
+                display: block;
                 width: calc(33.3% - 5px);
                 font:20px sans-serif;
                 padding:10px 0px;
@@ -28,17 +30,35 @@
 
         </style>
         <script>
-            
+            var state="start"
+            var states={start:"",
+                        reg  :"https://docs.google.com/forms/d/e/1FAIpQLSd5fTTMLmDp-3cgBENn8t5Pf1cC1a503mvJPyaSgJh75tplrA/viewform",
+                        vote :"https://docs.google.com/forms/d/e/1FAIpQLSfBm1YOjTnuZ-YpY46I3-skJBRTd_Bk8pVjbefrynWB-t8yQw/viewform",
+                       }
+            function change(to){
+                document.getElementById(to).className="top sel"
+                document.getElementById(state).className="top"
+                //alert(to+"\n"+states[to])
+                if (states[to]){
+                    document.getElementById("if_vote").src=states[to];
+                    document.getElementById("own_content").style.display="none"
+                    document.getElementById("if_vote").style.display="block"
+                }else{
+                    document.getElementById("own_content").style.display="block"
+                    document.getElementById("if_vote").style.display="none"
+                }
+                state=to
+            }
         </script>
     </head>
     <body style="border:0px; margin:0px; padding:0px">
         <div id="topbanner">
-            <div id="start" class="top" style="position:absolute; left:0px; top:0px">Start</div>
-            <div id="reg" class="top sel">Register</div>
-            <div id="vote" class="top" style="position:absolute; right:0px; top:0px;">Vote</div>
+            <a href="javascript:change('start')" id="start" class="top sel" style="position:absolute; left:0px; top:0px">Start</a>
+            <a href="javascript:change('reg')" id="reg" class="top"">Register</a>
+            <a href="javascript:change('vote')" id="vote" class="top" style="position:absolute; right:0px; top:0px;">Vote</a>
         </div>
         
-        <div style="margin:40px 0px 0px 0px; display:none">something</div>
-        <iframe src="https://docs.google.com/forms/d/e/1FAIpQLSd5fTTMLmDp-3cgBENn8t5Pf1cC1a503mvJPyaSgJh75tplrA/viewform" name="if_reg" id="if_reg" Registration"></iframe>
+        <div style="display:none" id="own_content" style="margin:40px 0px 0px 0px;">something</div>
+        <iframe style="display:none" src="https://docs.google.com/forms/d/e/1FAIpQLSd5fTTMLmDp-3cgBENn8t5Pf1cC1a503mvJPyaSgJh75tplrA/viewform" name="if_vote" id="if_vote" title="voting form content"></iframe>
     </body>
 </html>
