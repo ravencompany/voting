@@ -86,9 +86,25 @@
                   console.error('Async: Could not copy text: ', err);
                 });
             }
+            function savCookie(){
+              var cname="code"
+              var cvalue=document.getElementById("code").value
+              const d = new Date();
+              d.setTime(d.getTime() + (24*60*60*1000));
+              let expires = "expires="+ d.toUTCString();
+              document.cookie = cname + "=" + cvalue + ";" + expires + ";path=/";
+            }
+            function chkCookie(){
+                cookies=document.cookie.split(";")
+                var i;
+                for (i in cookies){
+                    pair=(cookies[i].trim()).split("=")
+                    if (pair[0]=="code") document.getElementById("code").value=pair[1]
+                }
+            }
         </script>
     </head>
-    <body style="border:0px; margin:0px; padding:0px">
+    <body style="border:0px; margin:0px; padding:0px" onload="chkCookie()">
         <div id="topbanner">
             <a href="javascript:change('start')" id="start" class="top sel" style="position:absolute; left:0px; top:0px">Start</a>
             <a href="javascript:change('reg')" id="reg" class="top"">Register</a>
@@ -100,14 +116,16 @@
         <input type="button" onclick="generate()" value="Generate" />
         <input disabled type="text" id="code" value="" size="20" />
         <input type="button" onclick="copy()" value="Copy" />
+        <input type="button" onclick="savCookie()" value="Save" />
         <p>"Copy" will copy to clipboard for you, to be pasted later.</p>
+        <p>"Save" will store the code as a cookie, to prevent it being lost if you close the tab, for example. Expiry is 1 day.</p>
         <h1>Register your voting code</h1>
         <p>If you click "Register" on the top banner, this will take you to google form. Use this form to link your randomised code to a short name to identify you, or whoever is voting from this device (e.g. a household). This name will appear on the vote-counting display.</p>
         <p>If more than one person is voting from this device, make sure the secretary is aware; they will enable the code to be used to vote the required number of times.</p>
         <p>Similarly, if you hold a proxy vote, and that person has made the secretary aware prior to the meeting, the secretary will enable an extra vote from your code.</p>
         <h1>Vote using the code</h1>
-        <p>When you click "Vote" on the top banner, this will take you to another google form, where you can cast you vote.  You can resubmit this form, but only the first vote will count.  If multiple votes have been granted (household/proxy as above), only the first n will count.</p>
-        <p>If another vote is needed, perhaps with different options, the secretary will edit the form.  Clicking again on "Vote" will reload it.</p>
+        <p>When you click "Vote" on the top banner, this will take you to another google form, where you can cast you vote.  You can resubmit this form, but only the first vote will count.  If n votes have been granted (household/proxy as above), only the first n will count.</p>
+        <p>If another round of voting is needed, perhaps with different options, the secretary will edit the form.  Clicking again on "Vote" will reload it.</p>
         <h1>In Action...</h1>
         <p>These forms send information to two google sheets, and their information is collated to a live display.  This will show who is registered to vote, and how many votes they have remaining.</p>
         <p>As such, when you cast a vote, you will be able to see it arrive and be assured that it has been counted, but no-one will be able to see who voted for what.</p>
