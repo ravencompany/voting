@@ -267,7 +267,7 @@ def sync_gui(**kwargs):
 def sync_all():
     if sync_voters(): # scan voter/vote data
         sync_gui()    # update gui if necesary
-    gui.window.after(1500,sync_all) #repeat
+    gui.window.after(2500,sync_all) #repeat
 
 def main():
     """Shows basic usage of the Sheets API.
